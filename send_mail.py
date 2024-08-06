@@ -2,8 +2,11 @@ import yagmail
 import datetime
 import tkinter as tk
 from tkinter import messagebox
+from win32com.client import Dispatch
 import os
 import configparser
+import sys
+import winshell
 
 
 class AutoMail:
@@ -27,6 +30,47 @@ class AutoMail:
         self.my_receiver = self.config["email"].get("my_receiver", "")
         self.my_cc = self.config["email"].get("my_cc", "")
 
+    def is_in_startup(self):
+        startup_folder = winshell.startup()
+        shortcut_path = os.path.join(startup_folder, "AutoMail.lnk")
+        return os.path.exists(shortcut_path)
+
+    def add_to_startup(self):
+        script_path = os.path.abspath(sys.argv[0])
+        startup_folder = winshell.startup()
+        shortcut_path = os.path.join(startup_folder, "AutoMail.lnk")
+
+        shell = Dispatch('WScript.Shell')
+        shortcut = shell.CreateShortCut(shortcut_path)
+        shortcut.Targetpath = sys.executable
+        shortcut.Arguments = script_path
+        shortcut.WorkingDirectory = os.path.dirname(script_path)
+        shortcut.save()
+
+    def remove_from_startup(self):
+        startup_folder = winshell.startup()
+        shortcut_path = os.path.join(startup_folder, "AutoMail.lnk")
+        if os.path.exists(shortcut_path):
+            os.remove(shortcut_path)
+
+    def toggle_startup(self):
+        if self.is_in_startup():
+            if messagebox.askyesno("开机启动", "程序已在开机启动项中。是否要移除？"):
+                try:
+                    self.remove_from_startup()
+                    messagebox.showinfo("开机启动", "程序已从开机启动项中移除。")
+                    self.startup_button.config(text="添加到开机启动")
+                except Exception as e:
+                    messagebox.showerror("错误", f"从开机启动项移除时出错: {e}")
+        else:
+            if messagebox.askyesno("开机启动", "程序未在开机启动项中。是否要添加？"):
+                try:
+                    self.add_to_startup()
+                    messagebox.showinfo("开机启动", "程序已成功添加到开机启动项。")
+                    self.startup_button.config(text="从开机启动中移除")
+                except Exception as e:
+                    messagebox.showerror("错误", f"添加到开机启动项时出错: {e}")
+
     def create_config(self):
         """创建配置文件"""
         self.config["email"] = {
@@ -46,10 +90,11 @@ class AutoMail:
         """创建UI界面"""
         self.root = tk.Tk()  # 创建窗口
         self.root.title("快速发送每日邮件")  # 设置窗口标题
-        self.root.geometry("600x590")  # 设置窗口大小
+        self.root.geometry("600x630")  # 设置窗口大小
 
         """subtitle"""
-        tk.Label(self.root, text="一次设置后续无需再次填写！！！", bg="yellow").pack(anchor='w', padx=10, pady=5)  # 创建label
+        tk.Label(self.root, text="一次设置后续无需再次填写！！！", bg="yellow").pack(anchor='w', padx=10,
+                                                                                  pady=5)  # 创建label
 
         """邮箱账户"""
         tk.Label(self.root, text="你的公司邮箱账户").pack(anchor='w', padx=10, pady=5)  # 创建label
@@ -86,6 +131,14 @@ class AutoMail:
         tk.Label(self.root, text="内容：").pack(anchor='w', padx=10, pady=5)  # 创建label
         self.content = tk.Text(self.root, width=70, height=15)  # 创建输入框
         self.content.pack(anchor='w', padx=10)  # 放置输入框
+
+        send_button = tk.Button(self.root, text="发送邮件", command=self.send_mail)
+        send_button.pack(pady=10)
+
+        # 更新开机启动按钮
+        button_text = "从开机启动中移除" if self.is_in_startup() else "添加到开机启动"
+        self.startup_button = tk.Button(self.root, text=button_text, command=self.toggle_startup)
+        self.startup_button.pack(pady=10)
 
         send_button = tk.Button(self.root, text="发送邮件", command=self.send_mail)
         send_button.pack(pady=10)
