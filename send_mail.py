@@ -140,9 +140,6 @@ class AutoMail:
         self.startup_button = tk.Button(self.root, text=button_text, command=self.toggle_startup)
         self.startup_button.pack(pady=10)
 
-        send_button = tk.Button(self.root, text="发送邮件", command=self.send_mail)
-        send_button.pack(pady=10)
-
         self.root.mainloop()
 
     def send_mail(self):
@@ -161,6 +158,7 @@ class AutoMail:
                 self.config.write(configfile)  # 写入配置文件
         except Exception as e:
             messagebox.showerror("错误", f"配置文件更新失败: {e}")
+            return
 
         try:
             yag = yagmail.SMTP(user=self.email.get(),
@@ -184,7 +182,10 @@ class AutoMail:
             # 发送邮件
             yag.send(**email_params)
 
-            messagebox.showinfo("提示", "邮件发送完成")
+            # 邮件发送成功后显示提示并自动关闭软件
+            messagebox.showinfo("提示", "邮件发送完成，点击确定后程序将自动关闭")
+            self.close_application()
+
         except Exception as e:
             error_message = f"邮件发送失败: {str(e)}\n\n"
             error_message += f"邮箱账户: {self.email.get()}\n"
@@ -192,6 +193,16 @@ class AutoMail:
             error_message += f"抄送: {self.cc.get()}\n"
             error_message += "请检查以上信息是否正确，以及网络连接是否正常。"
             messagebox.showerror("错误", error_message)
+
+    def close_application(self):
+        """关闭应用程序"""
+        try:
+            self.root.quit()  # 退出主循环
+            self.root.destroy()  # 销毁窗口
+        except:
+            pass
+        finally:
+            sys.exit(0)  # 确保程序完全退出
 
 
 if __name__ == '__main__':
